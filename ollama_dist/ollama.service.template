@@ -1,0 +1,17 @@
+[Unit]
+Description=Ollama Service
+After=network-online.target
+
+[Service]
+ExecStart={{OLLAMA_BINARY_PATH}} serve
+User={{OLLAMA_USER}}
+Group={{OLLAMA_GROUP}}
+Restart=always
+RestartSec=3
+Environment="PATH={{PATH}}"
+Environment="OLLAMA_MODELS={{OLLAMA_MODELS_DIR}}"
+Environment="OLLAMA_HOST={{OLLAMA_HOST}}"
+
+
+[Install]
+WantedBy=multi-user.target 
