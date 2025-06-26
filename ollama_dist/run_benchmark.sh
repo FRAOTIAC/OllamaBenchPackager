@@ -9,8 +9,9 @@ set -u
 
 # Configuration
 BENCHMARK_MODELS=(
-    "qwen2:0.5b"
-    "qwen3:0.6b"
+    "qwen2.5:0.5b"
+    "deepseek-r1:1.5b"
+    "deepseek-r1:7b"
 )
 CUSTOM_BENCHMARK_FILE="custom_benchmark_models.yml"
 VENV_DIR=".venv"
