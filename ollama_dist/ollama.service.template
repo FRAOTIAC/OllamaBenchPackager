@@ -10,8 +10,8 @@ Restart=always
 RestartSec=3
 Environment="PATH={{PATH}}"
 Environment="OLLAMA_MODELS={{OLLAMA_MODELS_DIR}}"
-Environment="OLLAMA_HOST={{OLLAMA_HOST}}"
-
+Environment="OLLAMA_HOST=0.0.0.0"
+Environment="OLLAMA_ORIGINS=*"
 
 [Install]
 WantedBy=multi-user.target 
