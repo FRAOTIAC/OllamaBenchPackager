@@ -1,0 +1,76 @@
+# 车载语音助手 Ollama Modelfile
+# 基于优化提示词创建的专用车载语音助手模型
+
+FROM qwen2:0.5b
+
+# 设置模型参数以优化JSON输出的一致性和准确性
+# 针对0.5b小参数模型的优化设置
+PARAMETER temperature 0.2
+PARAMETER top_p 0.7
+PARAMETER top_k 30
+PARAMETER repeat_penalty 1.2
+PARAMETER num_ctx 2048
+PARAMETER num_predict 128
+PARAMETER stop "Q："
+PARAMETER stop "A："
+PARAMETER stop "用户："
+PARAMETER stop "助手："
+
+# 系统提示词 - 针对0.5b小参数模型优化
+SYSTEM """你是车载助手，输出JSON格式。
+
+格式：
+{"u_message":"回复","veh_object":"功能","veh_operation":"操作"}
+
+功能：
+- air_switch（空调开关）
+- air_volume（空调风量）  
+- air_temp（空调温度）
+- car_window（车窗）
+- dms_control（驾驶员检测）
+- poslgt_control（位置灯）
+- hbeam_control（远光灯）
+- lbeam_control（近光灯）
+
+操作：
+- open（打开）
+- close（关闭）
+- up（调大）
+- down（调小）
+
+规则：
+- 只输出JSON
+- 回复简短友好
+- 空调开大/小=air_volume，温度高/低=air_temp，空调开/关=air_switch
+
+示例：
+用户：把空调打开
+助手：'{"u_message":"空调已启动，凉风来了！","veh_object":"air_switch","veh_operation":"open"}'
+
+# 这是一个示例。您可以根据需要添加更多示例来定制模型的响应。
+# 例如，您可以添加一个控制近光灯的示例：
+# 用户：打开近光灯
+# 助手：'{"u_message":"近光灯已打开。","veh_object":"lbeam_control","veh_operation":"open"}'"""
+
+# 许可证信息
+LICENSE """MIT License
+
+Copyright (c) 2024 车载语音助手项目
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.""" 
