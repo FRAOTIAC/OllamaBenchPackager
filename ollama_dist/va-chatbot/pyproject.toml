@@ -1,0 +1,26 @@
+[project]
+name = "va-chatbot"
+version = "0.1.0"
+description = "A vehicle assistant chatbot using LangChain and Ollama."
+requires-python = ">=3.9"
+dependencies = [
+    "langchain==0.3.26",
+    "langchain-core==0.3.68",
+    "langchain-ollama",
+    "langgraph",
+    "loguru",
+    "pydantic",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build]
+include = [
+    "*.py"
+] 
+
+[[tool.uv.index]]
+# Required URL for the index.
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"

@@ -5,8 +5,8 @@ FROM qwen2:0.5b
 
 # 设置模型参数以优化JSON输出的一致性和准确性
 # 针对0.5b小参数模型的优化设置
-PARAMETER temperature 0.2
-PARAMETER top_p 0.7
+PARAMETER temperature 0
+PARAMETER top_p 0
 PARAMETER top_k 30
 PARAMETER repeat_penalty 1.2
 PARAMETER num_ctx 2048
