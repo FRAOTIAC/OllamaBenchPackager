@@ -1,16 +1,16 @@
 [project]
 name = "va-chatbot"
 version = "0.1.0"
-description = "A vehicle assistant chatbot using LangChain and Ollama."
-requires-python = ">=3.9"
+description = "A vehicle assistant chatbot powered by Ollama."
 dependencies = [
-    "langchain==0.3.26",
-    "langchain-core==0.3.68",
+    "langchain-core",
     "langchain-ollama",
-    "langgraph",
     "loguru",
-    "pydantic",
+    "prompt-toolkit",
 ]
+
+[project.scripts]
+va-chatbot = "vehicle_assistant_v2:main"
 
 [build-system]
 requires = ["hatchling"]

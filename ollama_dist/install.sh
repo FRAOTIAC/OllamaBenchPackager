@@ -77,6 +77,39 @@ uninstall() {
     exit 0
 }
 
+pull_default_model() {
+    local model_name="qwen3:0.6b"
+    log_info "Attempting to pull the default model for the vehicle assistant: ${model_name}"
+    log_info "This may take several minutes depending on your network connection..."
+
+    # Give the service a moment to start up properly before we send commands
+    log_info "Waiting for the Ollama service to initialize..."
+    sleep 5
+
+    local ollama_binary="${INSTALL_DIR}/ollama"
+    local pull_command="${ollama_binary} pull ${model_name}"
+
+    # Run the pull command as the user who invoked sudo, as they have been added to the 'ollama' group.
+    # This is safer than running as root and ensures correct file permissions.
+    if [ -n "${SUDO_USER}" ] && id -u "${SUDO_USER}" &>/dev/null; then
+        log_info "Running pull command as user '${SUDO_USER}'..."
+        if sudo -u "${SUDO_USER}" ${pull_command}; then
+            log_info "Successfully pulled model '${model_name}'."
+        else
+            log_error "Failed to pull model. You may need to run the following command manually:"
+            log_error "  ${pull_command}"
+        fi
+    else
+        # Fallback if SUDO_USER is not set for some reason
+        log_info "SUDO_USER not found. Running pull command as root."
+        if ${pull_command}; then
+            log_info "Successfully pulled model '${model_name}' as root."
+        else
+            log_error "Failed to pull model as root. Please try running it manually."
+        fi
+    fi
+}
+
 main() {
     # Parse command-line arguments
     while [[ $# -gt 0 ]]; do
@@ -229,8 +262,34 @@ main() {
     log_info "Starting ollama service..."
     systemctl start ollama.service
 
+    # Pull the default model required by the chatbot application
+    pull_default_model
+
     log_info "Ollama installation completed successfully!"
     log_info "You can check the service status with: systemctl status ollama"
+
+    # Install uv, dependencies, and run the chatbot
+    log_info "Installing Python dependencies and starting the application..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    
+    # Navigate to the application directory to ensure uv finds pyproject.toml
+    APP_DIR="${SCRIPT_DIR}/va-chatbot"
+    if [ -d "${APP_DIR}" ]; then
+        log_info "Changing directory to ${APP_DIR}"
+        cd "${APP_DIR}"
+        
+        log_info "Syncing Python dependencies using uv..."
+        # Ensure the user running the script has permissions to run uv
+        # Source the environment script to put `uv` in the PATH
+        source "$HOME/.cargo/env"
+        uv sync
+
+        log_info "Running the vehicle assistant chatbot..."
+        uv run va-chatbot
+    else
+        log_error "Application directory not found at ${APP_DIR}"
+        exit 1
+    fi
 }
 
 # Run the main function

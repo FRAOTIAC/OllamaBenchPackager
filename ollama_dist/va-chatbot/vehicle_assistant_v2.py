@@ -11,6 +11,8 @@ from typing import Any, Dict, Optional, Tuple
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama.llms import OllamaLLM
 from loguru import logger
+from prompt_toolkit import prompt
+from prompt_toolkit.history import InMemoryHistory
 
 
 class VehicleAssistant:
@@ -60,14 +62,14 @@ class VehicleAssistant:
 - lbeam_control
 
 # 操作列表 (veh_operation)
-- open
-- close
-- up
-- down
+- open 打开
+- close 关闭
+- up 调大/调高 (仅支持 air_volume, air_temp)
+- down 调小/调低 (仅支持 air_volume, air_temp)
 
 # 规则
 1. 必须从上面的列表中选择 veh_object 和 veh_operation。
-2. `up` 或 `down` 操作只能用于 `air_volume`, `air_temp`, `car_window`。
+2. `up` 或 `down` 操作只能用于 `air_volume`, `air_temp`。
 3. 如果指令模糊(如"开灯")，优先选择最常用的 `lbeam_control` (近光灯)。
 4. 生成一个简短友好的 `u_message` 来确认操作。
 5. 严格按照 {{"u_message":"","veh_object":"","veh_operation":""}} 格式输出，不要添加任何额外文本。
@@ -217,14 +219,21 @@ class VehicleAssistant:
             context = self._compress_context()
             vehicle_state = self._format_vehicle_state()
 
-            # 调用模型
-            response = self.chain.invoke(
+            # 调用模型 (流式)
+            stream = self.chain.stream(
                 {
                     "context": context,
                     "vehicle_state": vehicle_state,
                     "question": user_input,
                 }
             )
+
+            print("🤖 助手: ", end="", flush=True)
+            response = ""
+            for chunk in stream:
+                print(chunk, end="", flush=True)
+                response += chunk
+            print()  # Newline after stream ends
 
             logger.info(f"模型原始响应: {response}")
 
@@ -261,36 +270,58 @@ class VehicleAssistant:
                         "success": True,
                     }
                 else:
+                    error_msg = "抱歉，我不理解这个指令，请再试一次～"
+                    # 流式输出可能已经输出了部分内容，我们在这里补全一句提示
+                    # 打印一个换行符来分隔错误的流式输出和我们的错误信息
+                    print(f"🤖 助手: {error_msg}")
                     return {
-                        "response": "抱歉，我不理解这个指令，请再试一次～",
+                        "response": error_msg,
                         "tool_call": None,
                         "success": False,
                     }
             else:
+                error_msg = "抱歉，我遇到了一些问题，请再试一次～"
+                # 同样，在流式输出后补充错误信息
+                print(f"🤖 助手: {error_msg}")
                 return {
-                    "response": "抱歉，我遇到了一些问题，请再试一次～",
+                    "response": error_msg,
                     "tool_call": None,
                     "success": False,
                 }
 
         except Exception as e:
             logger.error(f"处理指令时发生错误: {e}")
+            error_msg = "系统出现错误，请稍后再试～"
+            print(f"🤖 助手: {error_msg}")
             return {
-                "response": "系统出现错误，请稍后再试～",
+                "response": error_msg,
                 "tool_call": None,
                 "success": False,
             }
+
+    def _warmup_model(self):
+        """预热模型，减少首次响应延迟"""
+        logger.info("正在预热模型，请稍候...")
+        try:
+            # 使用一个简单的、通用的提示词来预热
+            self.model.invoke("你好")
+            logger.info("✅ 模型预热完成！")
+        except Exception as e:
+            logger.error(f"模型预热失败: {e}")
 
     def start_conversation(self):
         """启动对话循环"""
         logger.info("🚗 车载语音助手已启动！")
         logger.info("支持的功能：空调、车窗、灯光控制等")
+        logger.info("提示: 使用 ↑ 和 ↓ 箭头可以浏览历史指令。")
         logger.info("输入 'exit' 或 'quit' 退出")
         logger.info("-" * 50)
 
+        history = InMemoryHistory()
+
         while True:
             try:
-                user_input = input("\n🎤 您: ").strip()
+                user_input = prompt("\n🎤 您: ", history=history).strip()
 
                 if user_input.lower() in ["exit", "quit", "bye", "退出"]:
                     logger.info("👋 再见！祝您行车愉快！")
@@ -299,22 +330,20 @@ class VehicleAssistant:
                 if not user_input:
                     continue
 
-                # 处理指令
+                # 处理指令 (现在 process_command 会自己打印流式响应)
                 result = self.process_command(user_input)
 
-                # 显示回复
-                print(f"🤖 助手: {result['response']}")
+                # 仅在成功时显示工具调用和状态
+                if result["success"]:
+                    if result["tool_call"]:
+                        tool_call = result["tool_call"]
+                        print(
+                            f"🔧 工具调用: {tool_call['veh_object']} -> {tool_call['veh_operation']}"
+                        )
 
-                # 显示工具调用（如果成功）
-                if result["success"] and result["tool_call"]:
-                    tool_call = result["tool_call"]
-                    print(
-                        f"🔧 工具调用: {tool_call['veh_object']} -> {tool_call['veh_operation']}"
-                    )
-
-                # 显示当前状态
-                if self.vehicle_state:
-                    print(f"📊 当前状态: {self._format_vehicle_state()}")
+                    # 显示当前状态
+                    if self.vehicle_state:
+                        print(f"📊 当前状态: {self._format_vehicle_state()}")
 
             except KeyboardInterrupt:
                 logger.info("\n👋 再见！祝您行车愉快！")
@@ -327,6 +356,7 @@ class VehicleAssistant:
 def main():
     """主函数"""
     assistant = VehicleAssistant()
+    assistant._warmup_model()
     assistant.start_conversation()
 
 
